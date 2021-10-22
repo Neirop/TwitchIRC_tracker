@@ -1,0 +1,15 @@
+# IDE files
+.idea/
+.vscode/
+
+# Python files
+venv/
+__pycache__/
+
+# App log files
+*.log
+
+# Others
+*.txt
+*.cfg
+draft/
