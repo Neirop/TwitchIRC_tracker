@@ -1,0 +1,4 @@
+peewee>=3.14.3
+psycopg2
+pydle
+requests
