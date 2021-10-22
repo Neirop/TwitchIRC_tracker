@@ -24,7 +24,7 @@ def main():
                                            datefmt="%m/%d/%y %H:%M:%S"))
     root_logger.addHandler(handler)
 
-    # Retrieve API, database and webhook configs from cfg file
+    # Retrieve API and database configs from cfg file
     global_data.parse_cfg_options()
 
     # Init and connect to database

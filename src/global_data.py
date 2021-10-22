@@ -21,16 +21,6 @@ DATABASE_USER: str = ""
 DATABASE_PASSWORD: str = ""
 DATABASE_NAME: str = ""
 
-# Webhook config
-WEBHOOK_SERVER_HOST_NAME: str = ""
-WEBHOOK_SERVER_HOST_PORT: int = 0
-
-WEBHOOK_CALLBACK_HOST_NAME: str = ""
-WEBHOOK_CALLBACK_HOST_PORT: str = ""
-WEBHOOK_CALLBACK_URL: str = ""
-WEBHOOK_SECRET: str = ""
-WEBHOOK_LEASE_SECONDS: int = 0
-
 LOGGER = logging.getLogger(__name__)
 
 
@@ -43,8 +33,8 @@ def parse_args():
     parser.add_argument("-c", "--config-file", type=os.path.abspath,
                         default="config.cfg",
                         dest="CONFIG_FILE",
-                        help="Configuration file that contains API authentication, database access "
-                             "arguments and webhook configuration")
+                        help="Configuration file that contains API authentication and database access "
+                             "configuration")
     parser.add_argument("-l", "--log-level", type=str,
                         choices=["debug", "info", "warning", "error"],
                         default="info",
@@ -53,13 +43,12 @@ def parse_args():
     parser.add_argument("--max-streamers-tracked", type=int,
                         default=5000,
                         dest="MAX_STREAMERS_TRACKED",
-                        help="Use Twitch webhook to get stream event")
-    # Try store??
-    parser.add_argument("--debug-irc-usernotice", type=str,
-                        default=None,
-                        dest="DEBUG_IRC_USERNOTICE",
-                        help="Print USERNOTICE IRC response to file for debugging purpose")
-    # automatic fetch new streams option + manual list of streamer
+                        help="Maximum number of streamer tracked")
+    # parser.add_argument("--debug-irc-usernotice", type=str,
+    #                     default=None,
+    #                     dest="DEBUG_IRC_USERNOTICE",
+    #                     help="Print USERNOTICE IRC response to file for debugging purpose")
+    # automatic fetch new streams option
     ARGS = parser.parse_args()
 
 
@@ -71,8 +60,7 @@ def parse_cfg_options():
         exit(-1)
 
     try:
-        global API_CLIENT_ID, API_CLIENT_SECRET, WEBHOOK_SERVER_HOST_NAME, WEBHOOK_SERVER_HOST_PORT, \
-            WEBHOOK_CALLBACK_HOST_NAME, WEBHOOK_CALLBACK_HOST_PORT, WEBHOOK_SECRET, WEBHOOK_LEASE_SECONDS, \
+        global API_CLIENT_ID, API_CLIENT_SECRET, \
             DATABASE_HOST, DATABASE_PORT, DATABASE_USER, DATABASE_PASSWORD, DATABASE_NAME
 
         API_CLIENT_ID = cfg.get("API_auth", "client_id")
