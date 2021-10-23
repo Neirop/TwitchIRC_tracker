@@ -553,29 +553,38 @@ class UserMessage(BaseModel):
 
     @classmethod
     def get_last_messages_from_many_users(cls, user_param_list: List[UserParamMessage]) -> List[T]:
+        message_list = list()
         streamer_set = {user_param.streamer_id for user_param in user_param_list}
 
-        cls_alias = cls.alias()
-        subquery = cls_alias \
-            .select(cls_alias, fn.RANK().over(order_by=[cls_alias.message_datetime.desc()],
-                                              partition_by=[cls_alias.streamer_id])
-                    .alias("rank")) \
-            .where(cls_alias.streamer_id.in_(streamer_set))
+        for streamer_id in streamer_set:
+            cls_alias = cls.alias()
+            user_param_list_aggr = [user_param for user_param in user_param_list if
+                                    user_param.streamer_id == streamer_id]
 
-        user_cte = ValuesList(user_param_list).cte("streamer_user_limit", columns=["pid", "sid", "uid", "limit"])
-        query = cls \
-            .select(user_cte.c.pid, subquery.c.message_id, subquery.c.streamer_id, subquery.c.user_id,
-                    subquery.c.login_name, subquery.c.display_name, subquery.c.message_datetime,
-                    subquery.c.message_content, subquery.c.subscribed, subquery.c.deleted,
-                    subquery.c.rank) \
-            .from_(subquery) \
-            .join(user_cte, on=(
-                (subquery.c.streamer_id == user_cte.c.sid) &
-                (subquery.c.user_id == user_cte.c.uid) &
-                (subquery.c.rank <= user_cte.c.limit))) \
-            .with_cte(user_cte)
+            subquery = cls_alias \
+                .select(cls_alias, fn.RANK().over(order_by=[cls_alias.message_datetime.desc()])
+                        .alias("rank")) \
+                .where(cls_alias.streamer_id == streamer_id) \
+                .order_by(cls_alias.message_datetime.desc()) \
+                .limit(max(p.nb_last_messages for p in user_param_list_aggr))
 
-        return [mes for mes in query]
+            user_cte = ValuesList(user_param_list_aggr).cte("streamer_user_limit",
+                                                            columns=["pid", "sid", "uid", "limit"])
+            query = cls \
+                .select(user_cte.c.pid, subquery.c.message_id, subquery.c.streamer_id, subquery.c.user_id,
+                        subquery.c.login_name, subquery.c.display_name, subquery.c.message_datetime,
+                        subquery.c.message_content, subquery.c.subscribed, subquery.c.deleted,
+                        subquery.c.rank) \
+                .from_(subquery) \
+                .join(user_cte, on=(
+                    (subquery.c.user_id == user_cte.c.uid) &
+                    (subquery.c.rank <= user_cte.c.limit))) \
+                .with_cte(user_cte)
+
+            for mes in query:
+                message_list.append(mes)
+
+        return message_list
 
     @classmethod
     def count_messages_per_interval(cls, streamer_id: int, interval_list: list) -> dict:
