@@ -41,7 +41,7 @@ def main():
     token_ready.wait()
     if global_data.API_APP_ACCESS_TOKEN == "":
         print("Error: Can't get API access token")
-        exit(-1)
+        os.kill(os.getpid(), signal.SIGTERM)
 
     # Create instances
     stream_tracker_ins = stream_tracker.StreamTracker()
