@@ -16,6 +16,7 @@ from enum import Enum, auto
 import pydle
 from pydle.features.ircv3.tags import TaggedMessage
 
+import global_data
 import response_handler
 from database_model import Streamer
 from response_handler import ResponseStruct, RoomstateResponse, MessageResponse, \
@@ -142,7 +143,6 @@ class PendingCommandResult:
             d.clear()
 
 
-# TODO Debug option to print IRC on file
 class IRCTwitchClient:
     _last_request_timestamp = 0
 
@@ -592,6 +592,9 @@ class IRCTwitchClient:
 
         if not self._check_streamer_id(channel, streamer_id):
             return
+
+        if global_data.ARGS.USERNOTICE_FILE is not None:
+            global_data.ARGS.USERNOTICE_FILE.write("{}\n".format(message._raw))
 
         if msg_id in {"sub", "resub"}:
             month_tenure = int(message.tags["msg-param-cumulative-months"])

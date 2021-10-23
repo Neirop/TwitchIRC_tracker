@@ -398,7 +398,9 @@ class StreamTracker:
     def start(self):
         asyncio.set_event_loop(self.event_loop)
 
-        self.event_loop.create_task(self.fetch_new_streams())
+        if global_data.ARGS.NO_AUTO_TRACK is False:
+            self.event_loop.create_task(self.fetch_new_streams())
+
         self.event_loop.create_task(self.check_streams_change())
         self.event_loop.create_task(self.check_streamers_change())
         self.event_loop.create_task(self.handle_sub_stats_count())

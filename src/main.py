@@ -40,7 +40,7 @@ def main():
     handle_token_thread.start()
     token_ready.wait()
     if global_data.API_APP_ACCESS_TOKEN == "":
-        print("Error: Can't get API access token")
+        print("Error: Can't get API access token (check log)")
         os.kill(os.getpid(), signal.SIGTERM)
 
     # Create instances

@@ -27,10 +27,10 @@ LOGGER = logging.getLogger(__name__)
 def parse_args():
     global ARGS
 
-    parser = argparse.ArgumentParser(description="Collect twitch channels and chat statistics",
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(description="Track twitch channels IRC and collect statistics",
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument("-c", "--config-file", type=os.path.abspath,
+    parser.add_argument("-c", "--config-file", type=argparse.FileType("r"),
                         default="config.cfg",
                         dest="CONFIG_FILE",
                         help="Configuration file that contains API authentication and database access "
@@ -40,24 +40,24 @@ def parse_args():
                         default="info",
                         dest="LOG_LEVEL",
                         help="Define logging level")
+    parser.add_argument("--no-auto-track",
+                        action="store_true",
+                        dest="NO_AUTO_TRACK",
+                        help="Don't automatically fetch and track new streams from the top active streams")
     parser.add_argument("--max-streamers-tracked", type=int,
                         default=5000,
                         dest="MAX_STREAMERS_TRACKED",
                         help="Maximum number of streamer tracked")
-    # parser.add_argument("--debug-irc-usernotice", type=str,
-    #                     default=None,
-    #                     dest="DEBUG_IRC_USERNOTICE",
-    #                     help="Print USERNOTICE IRC response to file for debugging purpose")
-    # automatic fetch new streams option
+    parser.add_argument("--debug-irc-usernotice", type=argparse.FileType("w"),
+                        default=None,
+                        dest="USERNOTICE_FILE",
+                        help="Print USERNOTICE IRC response to file for debugging purpose")
     ARGS = parser.parse_args()
 
 
 def parse_cfg_options():
     cfg = configparser.ConfigParser()
-    retval = cfg.read(ARGS.CONFIG_FILE)
-    if len(retval) == 0:
-        print("Error: {} file doesn't exist or can't be read".format(ARGS.CONFIG_FILE))
-        exit(-1)
+    cfg.read_file(ARGS.CONFIG_FILE)
 
     try:
         global API_CLIENT_ID, API_CLIENT_SECRET, \
