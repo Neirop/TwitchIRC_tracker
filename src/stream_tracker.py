@@ -152,7 +152,8 @@ class StreamTracker:
     def _compile_stream_stats_time_series(stream_id: int, datetime_list: list,
                                           message_stats: dict, ban_stats: dict,
                                           cheer_stats: dict, sub_stats: dict):
-        time_series_stats = {dt: dict() for dt in datetime_list}
+        time_series_stats = {dt: {"stream_id": stream_id,
+                                  "start_count_datetime": dt} for dt in datetime_list}
 
         for dt, stats in message_stats.items():
             time_series_stats[dt]["nb_message"] = stats["nb_total_message"]
@@ -168,10 +169,6 @@ class StreamTracker:
         for dt, stats in sub_stats.items():
             time_series_stats[dt]["nb_paid_sub"] = stats["nb_total_sub"] - stats["nb_gifted_sub"]
             time_series_stats[dt]["nb_gifted_sub"] = stats["nb_gifted_sub"]
-
-        for dt, stats in time_series_stats.items():
-            stats["stream_id"] = stream_id
-            stats["start_count_datetime"] = dt
 
         StreamStatsCount.insert_many_row([s for s in time_series_stats.values()])
 
