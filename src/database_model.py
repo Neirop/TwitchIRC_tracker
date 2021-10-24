@@ -517,7 +517,7 @@ class UserMessage(BaseModel):
 
         for stream in Stream.get_last_streams():
             streamer_id_dt.append((stream.streamer_id,
-                                   dt_max if stream.ended_datetime is None
+                                   dt_max if stream.ended_datetime is not None
                                    else stream.started_datetime - timedelta(seconds=time_offset)))
 
         val_list = ValuesList(streamer_id_dt).cte("streamer_offset", columns=["sid", "dt"])
