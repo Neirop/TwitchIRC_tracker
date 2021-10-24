@@ -107,27 +107,27 @@ class Stream(BaseModel):
     subs_only_pct = FloatField(default=None, null=True)
     followers_only_state = IntegerField(default=None, null=True)
     # Message stats
-    nb_total_message = IntegerField(default=None, null=True)
-    nb_sub_message = IntegerField(default=None, null=True)
-    nb_deleted_message = IntegerField(default=None, null=True)
-    nb_unique_chatter = IntegerField(default=None, null=True)
-    nb_sub_unique_chatter = IntegerField(default=None, null=True)
+    nb_total_message = IntegerField(default=0)
+    nb_sub_message = IntegerField(default=0)
+    nb_deleted_message = IntegerField(default=0)
+    nb_unique_chatter = IntegerField(default=0)
+    nb_sub_unique_chatter = IntegerField(default=0)
     # Ban stats
-    nb_permaban = IntegerField(default=None, null=True)
-    nb_timeout = IntegerField(default=None, null=True)
-    nb_ban_by_bot = IntegerField(default=None, null=True)
-    avg_duration_timeout = IntegerField(default=None, null=True)
+    nb_permaban = IntegerField(default=0)
+    nb_timeout = IntegerField(default=0)
+    nb_ban_by_bot = IntegerField(default=0)
+    avg_duration_timeout = IntegerField(default=0)
     # Bit stats
-    nb_cheer = IntegerField(default=None, null=True)
-    nb_total_bit = IntegerField(default=None, null=True)
+    nb_cheer = IntegerField(default=0)
+    nb_total_bit = IntegerField(default=0)
     # Sub stats
-    nb_total_sub = IntegerField(default=None, null=True)
-    nb_first_sub_no_gift = IntegerField(default=None, null=True)
-    nb_gifted_sub = IntegerField(default=None, null=True)
-    nb_prime_sub = IntegerField(default=None, null=True)
-    nb_tier1_sub = IntegerField(default=None, null=True)
-    nb_tier2_sub = IntegerField(default=None, null=True)
-    nb_tier3_sub = IntegerField(default=None, null=True)
+    nb_total_sub = IntegerField(default=0)
+    nb_first_sub_no_gift = IntegerField(default=0)
+    nb_gifted_sub = IntegerField(default=0)
+    nb_prime_sub = IntegerField(default=0)
+    nb_tier1_sub = IntegerField(default=0)
+    nb_tier2_sub = IntegerField(default=0)
+    nb_tier3_sub = IntegerField(default=0)
 
     class Meta:
         table_name = 'stream'
@@ -454,9 +454,9 @@ class UserBanned(BaseModel):
         interval_count = dict()
 
         val_list = ValuesList(interval_list).cte("interval", columns=["sdt", "edt"])
-        query = cls.select(fn.SUM(Case(None, [(cls.ban_duration == 0, 1)])).alias("permaban"),
-                           fn.SUM(Case(None, [(cls.ban_duration > 0, 1)])).alias("timeout"),
-                           fn.SUM(Case(None, [(cls.ban_by_bot == True, 1)])).alias("ban_by_bot"),
+        query = cls.select(fn.SUM(Case(None, [(cls.ban_duration == 0, 1)], 0)).alias("permaban"),
+                           fn.SUM(Case(None, [(cls.ban_duration > 0, 1)], 0)).alias("timeout"),
+                           fn.SUM(Case(None, [(cls.ban_by_bot == True, 1)], 0)).alias("ban_by_bot"),
                            val_list.c.sdt) \
             .join(val_list, on=((cls.streamer_id == streamer_id) &
                                 (cls.ban_datetime >= val_list.c.sdt) &
@@ -466,10 +466,9 @@ class UserBanned(BaseModel):
             .group_by(val_list.c.sdt)
 
         for count in query:
-            interval_count[count.interval["sdt"]] = {"nb_permaban": count.permaban if count.permaban is not None else 0,
-                                                     "nb_timeout": count.timeout if count.timeout is not None else 0,
+            interval_count[count.interval["sdt"]] = {"nb_permaban": count.permaban,
+                                                     "nb_timeout": count.timeout,
                                                      "nb_ban_by_bot": count.ban_by_bot
-                                                     if count.ban_by_bot is not None else 0
                                                      }
 
         return interval_count
@@ -484,7 +483,7 @@ class UserBanned(BaseModel):
                    (cls.manually_unban == False)) \
             .get()
 
-        return query.avg_duration_timeout
+        return query.avg_duration_timeout if query.avg_duration_timeout is not None else 0
 
 
 class UserMessage(BaseModel):
@@ -592,8 +591,8 @@ class UserMessage(BaseModel):
 
         val_list = ValuesList(interval_list).cte("interval", columns=["sdt", "edt"])
         query = cls.select(fn.COUNT(cls.message_id).alias("total_mes"),
-                           fn.SUM(Case(None, [(cls.subscribed > 0, 1)])).alias("mes_sub"),
-                           fn.SUM(Case(None, [(cls.deleted == True, 1)])).alias("mes_deleted"),
+                           fn.SUM(Case(None, [(cls.subscribed > 0, 1)], 0)).alias("mes_sub"),
+                           fn.SUM(Case(None, [(cls.deleted == True, 1)], 0)).alias("mes_deleted"),
                            val_list.c.sdt) \
             .join(val_list, on=((cls.streamer_id == streamer_id) &
                                 (cls.message_datetime >= val_list.c.sdt) &
@@ -603,10 +602,8 @@ class UserMessage(BaseModel):
 
         for count in query:
             interval_count[count.interval["sdt"]] = {"nb_total_message": count.total_mes,
-                                                     "nb_sub_message": count.mes_sub
-                                                     if count.mes_sub is not None else 0,
+                                                     "nb_sub_message": count.mes_sub,
                                                      "nb_deleted_message": count.mes_deleted
-                                                     if count.mes_deleted is not None else 0
                                                      }
 
         return interval_count
@@ -614,7 +611,7 @@ class UserMessage(BaseModel):
     @classmethod
     def count_unique_chatters(cls, streamer_id: int, start_datetime: datetime, end_datetime: datetime) -> dict:
         query = cls.select(fn.COUNT(cls.user_id.distinct()).alias("unique_chatter"),
-                           fn.COUNT(Case(None, [(cls.subscribed > 0, cls.user_id)]).distinct())
+                           fn.COUNT(Case(None, [(cls.subscribed > 0, cls.user_id)], 0).distinct())
                            .alias("sub_unique_chatter"),
                            ) \
             .where((cls.streamer_id == streamer_id) &
@@ -623,7 +620,7 @@ class UserMessage(BaseModel):
             .get()
 
         return {"nb_unique_chatter": query.unique_chatter,
-                "nb_sub_unique_chatter": query.sub_unique_chatter if query.sub_unique_chatter is not None else 0
+                "nb_sub_unique_chatter": query.sub_unique_chatter
                 }
 
 
@@ -704,12 +701,13 @@ class Sub(BaseModel):
 
         val_list = ValuesList(interval_list).cte("interval", columns=["sdt", "edt"])
         query = cls.select(fn.COUNT(cls.user_id).alias("total_sub"),
-                           fn.SUM(Case(None, [(cls.month_tenure == 1 and cls.gifted == False, 1)])).alias("first_sub"),
-                           fn.SUM(Case(None, [(cls.gifted == True, 1)])).alias("gifted"),
-                           fn.SUM(Case(None, [(cls.sub_type == 0, 1)])).alias("prime"),
-                           fn.SUM(Case(None, [(cls.sub_type == 1, 1)])).alias("tier1"),
-                           fn.SUM(Case(None, [(cls.sub_type == 2, 1)])).alias("tier2"),
-                           fn.SUM(Case(None, [(cls.sub_type == 3, 1)])).alias("tier3"),
+                           fn.SUM(Case(None, [((cls.month_tenure == 1) & (cls.gifted == False), 1)], 0))
+                           .alias("first_sub"),
+                           fn.SUM(Case(None, [(cls.gifted == True, 1)], 0)).alias("gifted"),
+                           fn.SUM(Case(None, [(cls.sub_type == 0, 1)], 0)).alias("prime"),
+                           fn.SUM(Case(None, [(cls.sub_type == 1, 1)], 0)).alias("tier1"),
+                           fn.SUM(Case(None, [(cls.sub_type == 2, 1)], 0)).alias("tier2"),
+                           fn.SUM(Case(None, [(cls.sub_type == 3, 1)], 0)).alias("tier3"),
                            val_list.c.sdt) \
             .join(val_list, on=((cls.streamer_id == streamer_id) &
                                 (cls.sub_datetime >= val_list.c.sdt) &
@@ -719,13 +717,12 @@ class Sub(BaseModel):
 
         for count in query:
             interval_count[count.interval["sdt"]] = {"nb_total_sub": count.total_sub,
-                                                     "nb_first_sub_no_gift": count.first_sub
-                                                     if count.first_sub is not None else 0,
-                                                     "nb_gifted_sub": count.gifted if count.gifted is not None else 0,
-                                                     "nb_prime_sub": count.prime if count.prime is not None else 0,
-                                                     "nb_tier1_sub": count.tier1 if count.tier1 is not None else 0,
-                                                     "nb_tier2_sub": count.tier2 if count.tier2 is not None else 0,
-                                                     "nb_tier3_sub": count.tier3 if count.tier3 is not None else 0
+                                                     "nb_first_sub_no_gift": count.first_sub,
+                                                     "nb_gifted_sub": count.gifted,
+                                                     "nb_prime_sub": count.prime,
+                                                     "nb_tier1_sub": count.tier1,
+                                                     "nb_tier2_sub": count.tier2,
+                                                     "nb_tier3_sub": count.tier3
                                                      }
 
         return interval_count
@@ -735,11 +732,11 @@ class Sub(BaseModel):
         query = cls.select(cls.streamer_id,
                            fn.COUNT(cls.user_id).alias("total_sub"),
                            Value(fn.AVG(cls.month_tenure).alias("avg_month_tenure")),
-                           fn.SUM(Case(None, [(cls.gifted == True, 1)])).alias("gifted"),
-                           fn.SUM(Case(None, [(cls.sub_type == 0, 1)])).alias("prime"),
-                           fn.SUM(Case(None, [(cls.sub_type == 1, 1)])).alias("tier1"),
-                           fn.SUM(Case(None, [(cls.sub_type == 2, 1)])).alias("tier2"),
-                           fn.SUM(Case(None, [(cls.sub_type == 3, 1)])).alias("tier3"),
+                           fn.SUM(Case(None, [(cls.gifted == True, 1)], 0)).alias("gifted"),
+                           fn.SUM(Case(None, [(cls.sub_type == 0, 1)], 0)).alias("prime"),
+                           fn.SUM(Case(None, [(cls.sub_type == 1, 1)], 0)).alias("tier1"),
+                           fn.SUM(Case(None, [(cls.sub_type == 2, 1)], 0)).alias("tier2"),
+                           fn.SUM(Case(None, [(cls.sub_type == 3, 1)], 0)).alias("tier3"),
                            ) \
             .where((cls.sub_datetime > (from_datetime - SQL("INTERVAL '1 month'"))) |
                    (
@@ -754,13 +751,12 @@ class Sub(BaseModel):
         return [{"streamer_id": count.streamer_id,
                  "count_datetime": from_datetime,
                  "nb_active_total_sub": count.total_sub,
-                 "average_month_tenure": count.avg_month_tenure
-                 if count.avg_month_tenure is not None else 0,
-                 "nb_active_gifted_sub": count.gifted if count.gifted is not None else 0,
-                 "nb_active_prime_sub": count.prime if count.prime is not None else 0,
-                 "nb_active_tier1_sub": count.tier1 if count.tier1 is not None else 0,
-                 "nb_active_tier2_sub": count.tier2 if count.tier2 is not None else 0,
-                 "nb_active_tier3_sub": count.tier3 if count.tier3 is not None else 0
+                 "average_month_tenure": count.avg_month_tenure,
+                 "nb_active_gifted_sub": count.gifted,
+                 "nb_active_prime_sub": count.prime,
+                 "nb_active_tier1_sub": count.tier1,
+                 "nb_active_tier2_sub": count.tier2,
+                 "nb_active_tier3_sub": count.tier3
                  } for count in query]
 
 
