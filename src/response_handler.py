@@ -4,13 +4,12 @@ import copy
 import functools
 import logging
 import statistics
-import threading
 import time
 import typing
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
-from database_model import RoomState, UserBanned, UserMessage, Cheer, Sub, database
+from database_model import RoomState, UserBanned, UserMessage, Cheer, Sub
 
 LOGGER = logging.getLogger(__name__)
 
@@ -109,6 +108,7 @@ class HandlerStatistics:
                 self.iteration_stats[func.__name__ + "_exectime_ms"] = round((time.time() - start_time) * 1000)
                 if save_iteration_stats:
                     self._stats_deque.append(self.iteration_stats.copy())
+                    self.iteration_stats = dict.fromkeys(self.iteration_stats.keys(), 0)
                 return result
 
             return _wrap

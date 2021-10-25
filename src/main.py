@@ -56,7 +56,7 @@ def main():
 
     while True:
         try:
-            shell.Shell(irc_handler_ins).cmdloop()
+            shell.Shell(stream_tracker_ins, irc_handler_ins).cmdloop()
         except KeyboardInterrupt:
             try:
                 print("\nCTRL-C caught, press CTRL-C a second time to exit program")

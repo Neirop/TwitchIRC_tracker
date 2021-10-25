@@ -3,6 +3,7 @@ import collections
 import logging
 import time
 from datetime import datetime, timedelta
+from typing import Tuple
 
 import global_data
 import twitch_api
@@ -56,7 +57,7 @@ class StreamTracker:
                                 if stream.streamer_id not in streamer_id_tracked_set}
 
             # Retrieve user info
-            new_users_list = twitch_api.get_many_users(list(new_streams_dict.keys()))
+            new_users_list = twitch_api.get_many_users(user_id_list=list(new_streams_dict.keys()))
 
             new_streamers_tracked_counter = 0
             for user in new_users_list:
@@ -296,7 +297,7 @@ class StreamTracker:
 
             streamers_list = Streamer.get_all_record_of_table()
 
-            streamers_update = twitch_api.get_many_users([s.streamer_id for s in streamers_list])
+            streamers_update = twitch_api.get_many_users(user_id_list=[s.streamer_id for s in streamers_list])
             streamers_update = {s.streamer_id: s for s in streamers_update}
 
             for streamer in streamers_list:
@@ -381,16 +382,32 @@ class StreamTracker:
                                                            CLEAN_MESSAGE_OFFSET,
                                                            CLEAN_DELETED_MESSAGE_OFFSET)
 
+            elapsed_time = time.time() - start_time
             LOGGER.info("Clean old stats processed in %.2f seconds (%d UserMessage deleted)",
-                        time.time() - start_time, nb_del)
+                        elapsed_time, nb_del)
 
-            minus_sleep = time.time() - start_time
-            await asyncio.sleep(POLL_TIME_CLEAN_STATS - minus_sleep
-                                if minus_sleep < POLL_TIME_CLEAN_STATS else 0)
+            await asyncio.sleep(POLL_TIME_CLEAN_STATS - elapsed_time
+                                if elapsed_time < POLL_TIME_CLEAN_STATS else 0)
 
-    async def track_streamers(self, login_name: list):
-        # TODO Use twitch_api.get_many_users with login_name
-        pass
+    async def track_streamers(self, login_list: list) -> Tuple[list, list]:
+        already_tracked_list = list()
+        no_exist_list = list()
+
+        streamers = {s.login_name: s for s in twitch_api.get_many_users(login_list=login_list)}
+        id_database_set = {st.streamer_id
+                           for st in Streamer.get_streamers([s.streamer_id for s in streamers.values()])}
+
+        for login in login_list:
+            streamer = streamers.get(login, None)
+            if streamer is not None:
+                if streamer.streamer_id not in id_database_set:
+                    Streamer.insert_streamer(**vars(streamer))
+                else:
+                    already_tracked_list.append(login)
+            else:
+                no_exist_list.append(login)
+
+        return already_tracked_list, no_exist_list
 
     def start(self):
         asyncio.set_event_loop(self.event_loop)
