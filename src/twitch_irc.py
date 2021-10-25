@@ -812,12 +812,12 @@ class IRCHandler:
             streamers = await self.event_loop.run_in_executor(None, Streamer.get_all_record_of_table)
 
             for streamer in streamers:
-                if not streamer.banned:
-                    # Join channel
-                    await self.channel_irc_queue.put((streamer.login_name, streamer.streamer_id))
-                else:
+                if streamer.banned or not streamer.tracked:
                     # Part channel
                     await self.channel_irc_queue.put((streamer.login_name, 0))
+                else:
+                    # Join channel
+                    await self.channel_irc_queue.put((streamer.login_name, streamer.streamer_id))
 
             # Case for login change: Part for old login
             streamers_login = {streamer.login_name for streamer in streamers}

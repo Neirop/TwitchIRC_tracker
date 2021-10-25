@@ -22,7 +22,7 @@ class Shell(cmd.Cmd):
 
     def do_api_access_token(self, args):
         """usage: api_access_token
-        Print API access token and remaining time"""
+        Print API access token"""
         print("API app access token: {}".format(global_data.API_APP_ACCESS_TOKEN))
 
     def do_irc_client_stats(self, args):
@@ -64,16 +64,22 @@ class Shell(cmd.Cmd):
             return
         print(self.irc_handler.response_handler.get_stats(args[0] == "-v" if args else False))
 
-    def do_track_streamer(self, args):
-        """usage: track_streamer STREAMER_LOGIN_NAME [STREAMER_LOGIN_NAME ...]
-                Track new streamers (not affected by the limit number of streamer tracked)"""
-        args = self.parse_args(args, str, 1)
-        login_list = list()
-        for login in args:
+    @staticmethod
+    def _check_login(login_list) -> list:
+        valid_login_list = list()
+        for login in login_list:
             if re.match(r'^[\w]*$', login) is not None:
-                login_list.append(login)
+                valid_login_list.append(login.lower())
             else:
                 print("[{}] is an invalid login name".format(login))
+
+        return valid_login_list
+
+    def do_track_streamer(self, args):
+        """usage: track_streamer STREAMER_LOGIN_NAME [STREAMER_LOGIN_NAME ...]
+        Track new streamers or streamers set as untracked (not affected by the limit number of streamer tracked)"""
+        args = self.parse_args(args, str, 1)
+        login_list = self._check_login(args)
 
         already_tracked_list, no_exist_list = asyncio.run_coroutine_threadsafe(
             self.stream_tracker.track_streamers(login_list), self.stream_tracker.event_loop).result()
@@ -84,6 +90,20 @@ class Shell(cmd.Cmd):
                 print("[{}] doesn't exist".format(login))
             else:
                 print("[{}] tracked".format(login))
+
+    def do_untrack_streamer(self, args):
+        """usage: untrack_streamer STREAMER_LOGIN_NAME [STREAMER_LOGIN_NAME ...]
+        Untrack streamers, streams and IRC statistics won't be collected anymore"""
+        args = self.parse_args(args, str, 1)
+        login_list = self._check_login(args)
+
+        already_untracked_list = asyncio.run_coroutine_threadsafe(
+            self.stream_tracker.untrack_streamers(login_list), self.stream_tracker.event_loop).result()
+        for login in login_list:
+            if login in already_untracked_list:
+                print("[{}] is already untracked".format(login))
+            else:
+                print("[{}] untracked".format(login))
 
     def do_exit(self, args):
         """usage: exit

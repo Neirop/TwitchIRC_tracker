@@ -72,8 +72,15 @@ class Streamer(BaseModel):
     T = TypeVar('T', bound="Streamer")
 
     @classmethod
-    def get_streamers(cls, streamer_id_list: list) -> List[T]:
-        return [s for s in cls.select().where(cls.streamer_id.in_(streamer_id_list))]
+    def get_all_streamers_tracked(cls):
+        return [s for s in cls.select().where(cls.tracked == True)]
+
+    @classmethod
+    def get_streamers(cls, streamer_id_list: list = None, login_list: list = None) -> List[T]:
+        streamer_id_list = list() if streamer_id_list is None else streamer_id_list
+        login_list = list() if login_list is None else login_list
+        return [s for s in cls.select().where(cls.streamer_id.in_(streamer_id_list) |
+                                              (cls.login_name.in_(login_list)))]
 
     @classmethod
     def insert_streamer(cls, streamer_id: int, login_name: str, display_name: str, profile_image: str,

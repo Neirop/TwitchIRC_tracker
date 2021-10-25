@@ -52,7 +52,8 @@ class StreamTracker:
 
             # Retrieve only streamer's stream not already tracked
             streamer_id_tracked_set = {stream.streamer_id for stream in
-                                       Streamer.get_streamers([s.streamer_id for s in first_streams_list])}
+                                       Streamer.get_streamers(streamer_id_list=[s.streamer_id
+                                                                                for s in first_streams_list])}
             new_streams_dict = {stream.streamer_id: stream for stream in first_streams_list
                                 if stream.streamer_id not in streamer_id_tracked_set}
 
@@ -235,8 +236,8 @@ class StreamTracker:
             stats = collections.Counter()
             start_time = time.time()
 
-            current_streams_online = twitch_api.get_many_streams([s.streamer_id for s in
-                                                                  Streamer.get_all_record_of_table()])
+            current_streams_online = twitch_api.get_many_streams([s.streamer_id
+                                                                  for s in Streamer.get_all_streamers_tracked()])
             current_streams_online = {stream.stream_id: stream for stream in current_streams_online}
 
             if len(current_streams_online) > 0:
@@ -295,7 +296,7 @@ class StreamTracker:
             stats = collections.Counter()
             start_time = time.time()
 
-            streamers_list = Streamer.get_all_record_of_table()
+            streamers_list = Streamer.get_all_streamers_tracked()
 
             streamers_update = twitch_api.get_many_users(user_id_list=[s.streamer_id for s in streamers_list])
             streamers_update = {s.streamer_id: s for s in streamers_update}
@@ -393,21 +394,38 @@ class StreamTracker:
         already_tracked_list = list()
         no_exist_list = list()
 
-        streamers = {s.login_name: s for s in twitch_api.get_many_users(login_list=login_list)}
-        id_database_set = {st.streamer_id
-                           for st in Streamer.get_streamers([s.streamer_id for s in streamers.values()])}
+        streamer_dict = {s.login_name: s for s in twitch_api.get_many_users(login_list=login_list)}
+        streamer_database_dict = {st.streamer_id: st
+                                  for st in Streamer.get_streamers(streamer_id_list=[s.streamer_id
+                                                                                     for s in streamer_dict.values()])}
 
         for login in login_list:
-            streamer = streamers.get(login, None)
+            streamer = streamer_dict.get(login, None)
             if streamer is not None:
-                if streamer.streamer_id not in id_database_set:
+                if streamer.streamer_id not in streamer_database_dict:
                     Streamer.insert_streamer(**vars(streamer))
+                elif streamer_database_dict[streamer.streamer_id].tracked is False:
+                    Streamer.update_streamer(streamer.streamer_id, tracked=True)
                 else:
                     already_tracked_list.append(login)
             else:
                 no_exist_list.append(login)
 
         return already_tracked_list, no_exist_list
+
+    async def untrack_streamers(self, login_list: list) -> list:
+        already_untracked_list = list()
+
+        streamer_dict = {s.login_name: s for s in Streamer.get_streamers(login_list=login_list)}
+        # TODO Test str case
+        for login in login_list:
+            streamer = streamer_dict.get(login, None)
+            if streamer is not None and streamer.tracked:
+                Streamer.update_streamer(streamer.streamer_id, tracked=False)
+            else:
+                already_untracked_list.append(login)
+
+        return already_untracked_list
 
     def start(self):
         asyncio.set_event_loop(self.event_loop)
