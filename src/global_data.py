@@ -44,6 +44,10 @@ def parse_args():
                         action="store_true",
                         dest="NO_AUTO_TRACK",
                         help="Don't automatically fetch and track new streams from the top active streams")
+    parser.add_argument("--no-auto-clean",
+                        action="store_true",
+                        dest="NO_AUTO_CLEAN",
+                        help="Don't automatically clean old messages and bans")
     parser.add_argument("--max-streamers-tracked", type=int,
                         default=5000,
                         dest="MAX_STREAMERS_TRACKED",
@@ -73,7 +77,7 @@ def parse_cfg_options():
         DATABASE_NAME = cfg.get("database", "database_name")
 
     except Exception as err:
-        print("Error: {}".format(err))
+        print("Error when parsing config file: {}".format(err))
         exit(-1)
 
 

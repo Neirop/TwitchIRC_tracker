@@ -436,10 +436,10 @@ class StreamTracker:
 
         if global_data.ARGS.NO_AUTO_TRACK is False:
             self.event_loop.create_task(self.fetch_new_streams())
-
         self.event_loop.create_task(self.check_streams_change())
         self.event_loop.create_task(self.check_streamers_change())
         self.event_loop.create_task(self.handle_sub_stats_count())
-        self.event_loop.create_task(self.clean_old_stats())
+        if global_data.ARGS.NO_AUTO_CLEAN is False:
+            self.event_loop.create_task(self.clean_old_stats())
 
         self.event_loop.run_forever()
