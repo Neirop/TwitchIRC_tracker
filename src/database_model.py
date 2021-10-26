@@ -426,6 +426,33 @@ class UserBanned(BaseModel):
     def set_multiple_unban(cls, ban_id_list: Iterable[str]):
         cls.update(manually_unban=True).where(UserBanned.ban_id.in_(ban_id_list))
 
+    @classmethod
+    def delete_old_bans(cls, time_offset: int, nb_ban_offset: int) -> int:
+        dt_max = datetime.utcnow() - timedelta(seconds=time_offset)
+        streamer_id_dt = list()
+
+        for stream in Stream.get_last_streams():
+            streamer_id_dt.append((stream.streamer_id,
+                                   dt_max if stream.ended_datetime is not None
+                                   else stream.started_datetime - timedelta(seconds=time_offset)))
+
+        val_list = ValuesList(streamer_id_dt).cte("streamer_offset", columns=["sid", "dt"])
+        cls_alias1 = cls.alias()
+        subquery = cls_alias1.select(cls_alias1.ban_id,
+                                     fn.RANK().over(order_by=[cls_alias1.ban_datetime.desc()],
+                                                    partition_by=[cls_alias1.streamer_id]).alias("rank")) \
+            .join(val_list, on=((cls_alias1.streamer_id == val_list.c.sid) &
+                                (cls_alias1.ban_datetime <= val_list.c.dt))) \
+            .with_cte(val_list) \
+            .alias("subq")
+
+        cls_alias2 = cls.alias()
+        query = cls_alias2.select(subquery.c.ban_id) \
+            .from_(subquery) \
+            .where(subquery.c.rank > nb_ban_offset)
+
+        return cls.delete().where(cls.ban_id.in_(query)).execute()
+
     class UserParamBan(NamedTuple):
         param_id: str
         streamer_id: int
@@ -518,6 +545,10 @@ class UserMessage(BaseModel):
     T = TypeVar('T', bound="UserMessage")
 
     @classmethod
+    def flag_messages_as_deleted(cls, message_id_list: list) -> int:
+        return cls.update(deleted=True).where(cls.message_id.in_(message_id_list)).execute()
+
+    @classmethod
     def delete_old_messages(cls, time_offset: int, nb_message_offset: int, nb_deleted_message_offset: int) -> int:
         dt_max = datetime.utcnow() - timedelta(seconds=time_offset)
         streamer_id_dt = list()
@@ -546,10 +577,6 @@ class UserMessage(BaseModel):
                     ((subquery.c.rank > nb_deleted_message_offset) & (subquery.c.deleted == True))))
 
         return cls.delete().where(cls.message_id.in_(query)).execute()
-
-    @classmethod
-    def flag_messages_as_deleted(cls, message_id_list: list) -> int:
-        return cls.update(deleted=True).where(cls.message_id.in_(message_id_list)).execute()
 
     class UserParamMessage(NamedTuple):
         param_id: str

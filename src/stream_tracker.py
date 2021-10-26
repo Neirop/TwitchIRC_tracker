@@ -30,6 +30,7 @@ POLL_TIME_HANDLE_SUB_STATS = 3 * 60 * 60
 CLEAN_TIME_OFFSET = 30 * 60
 CLEAN_MESSAGE_OFFSET = 150
 CLEAN_DELETED_MESSAGE_OFFSET = 100
+CLEAN_BAN_OFFSET = 100
 POLL_TIME_CLEAN_STATS = 30 * 60
 
 LOGGER = logging.getLogger(__name__)
@@ -378,14 +379,18 @@ class StreamTracker:
     async def clean_old_stats(self):
         while True:
             start_time = time.time()
-            nb_del = await self.event_loop.run_in_executor(None, UserMessage.delete_old_messages,
-                                                           CLEAN_TIME_OFFSET,
-                                                           CLEAN_MESSAGE_OFFSET,
-                                                           CLEAN_DELETED_MESSAGE_OFFSET)
+            nb_mes_del = await self.event_loop.run_in_executor(None, UserMessage.delete_old_messages,
+                                                               CLEAN_TIME_OFFSET,
+                                                               CLEAN_MESSAGE_OFFSET,
+                                                               CLEAN_DELETED_MESSAGE_OFFSET)
+
+            nb_ban_del = await self.event_loop.run_in_executor(None, UserBanned.delete_old_bans,
+                                                               CLEAN_TIME_OFFSET,
+                                                               CLEAN_BAN_OFFSET)
 
             elapsed_time = time.time() - start_time
-            LOGGER.info("Clean old stats processed in %.2f seconds (%d UserMessage deleted)",
-                        elapsed_time, nb_del)
+            LOGGER.info("Clean old stats processed in %.2f seconds (%d UserMessage deleted, %d UserBanned deleted)",
+                        elapsed_time, nb_mes_del, nb_ban_del)
 
             await asyncio.sleep(POLL_TIME_CLEAN_STATS - elapsed_time
                                 if elapsed_time < POLL_TIME_CLEAN_STATS else 0)
@@ -417,7 +422,6 @@ class StreamTracker:
         already_untracked_list = list()
 
         streamer_dict = {s.login_name: s for s in Streamer.get_streamers(login_list=login_list)}
-        # TODO Test str case
         for login in login_list:
             streamer = streamer_dict.get(login, None)
             if streamer is not None and streamer.tracked:
