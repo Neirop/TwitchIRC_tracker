@@ -1,6 +1,6 @@
 import time
 import typing
-from datetime import datetime, timezone
+from datetime import datetime
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -13,13 +13,9 @@ def convert_str_date_to_datetime(str_date: str) -> datetime:
     return datetime.strptime(str_date[:19], "%Y-%m-%dT%H:%M:%S")
 
 
-def convert_str_date_to_timestamp(str_date: str) -> float:
-    return datetime.strptime(str_date[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc).timestamp()
-
-
-def sleep_until(end_datetime: datetime):
+def sleep_until(end_utcdatetime: datetime):
     while True:
-        diff = (end_datetime - datetime.now()).total_seconds()
+        diff = (end_utcdatetime - datetime.utcnow()).total_seconds()
         if diff < 0:
             return
         time.sleep(diff / 2)

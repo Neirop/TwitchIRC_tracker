@@ -1,10 +1,11 @@
 import argparse
 import configparser
 import logging
-import os
 import threading
+import time
 from datetime import datetime, timedelta
 
+import database_model
 import utils
 
 ARGS: argparse.Namespace
@@ -95,7 +96,7 @@ def get_app_access_token(token_ready: threading.Event):
             except (ValueError, KeyError):
                 pass
             LOGGER.error("Error %d (%s) to get app access token", req.status_code, error_message)
-            expire_datetime = datetime.now() + timedelta(seconds=5)
+            expire_datetime = datetime.utcnow() + timedelta(seconds=5)
         else:
             req_json = req.json()
             API_APP_ACCESS_TOKEN = req_json["access_token"]
@@ -105,7 +106,7 @@ def get_app_access_token(token_ready: threading.Event):
             # "message": "Invalid OAuth token"
 
             # Refresh token 12 hours before expiration
-            expire_datetime = datetime.now() + timedelta(seconds=req_json["expires_in"]) - timedelta(hours=12)
+            expire_datetime = datetime.utcnow() + timedelta(seconds=req_json["expires_in"]) - timedelta(hours=12)
             LOGGER.info("App access token requested [%s], expires %s",
                         API_APP_ACCESS_TOKEN, expire_datetime)
 
@@ -125,3 +126,22 @@ def revoke_app_access_token(token: str):
         except (ValueError, KeyError):
             pass
         LOGGER.error("Error %d (%s) to revoke app access token", req.status_code, error_message)
+
+
+def handle_daily_reindex(utchour_wakeup: int):
+    reindex_pause = 30
+    while 1:
+        d = datetime.utcnow()
+        d = d.replace(hour=utchour_wakeup, minute=0, second=0, microsecond=0) + \
+            timedelta(days=int(d.hour >= utchour_wakeup))
+
+        utils.sleep_until(d)
+
+        start_time = time.time()
+
+        database_model.reindex_table("user_message")
+        # Make pause between REINDEX to avoid blocking response_handler
+        time.sleep(reindex_pause)
+        database_model.reindex_table("user_banned")
+
+        LOGGER.info("%.2f", time.time() - start_time - reindex_pause)

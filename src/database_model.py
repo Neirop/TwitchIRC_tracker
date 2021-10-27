@@ -831,6 +831,11 @@ class SubStatsCount(BaseModel):
         return [s for s in query]
 
 
+def reindex_table(table_name: str):
+    if table_name in database.get_tables():
+        database.execute_sql("REINDEX TABLE {}".format(table_name))
+
+
 def init_db(database_name: str, host: str, port: int, user: str, password: str):
     database.init(database_name, host=host, port=port, user=user, password=password)
     database.connect()
