@@ -6,6 +6,7 @@ import time
 from datetime import datetime, timedelta
 
 import database_model
+import twitch_api
 import utils
 
 ARGS: argparse.Namespace
@@ -82,31 +83,18 @@ def parse_cfg_options():
         exit(-1)
 
 
-def get_app_access_token(token_ready: threading.Event):
+def handle_app_access_token(token_ready: threading.Event):
     global API_APP_ACCESS_TOKEN
 
     while True:
-        url = "https://id.twitch.tv/oauth2/token?client_id=" + API_CLIENT_ID + "&client_secret=" \
-              + API_CLIENT_SECRET + "&grant_type=client_credentials"
-        req = utils.request_post(url)
-        if req.status_code != 200:
-            error_message = "no message"
-            try:
-                error_message = req.json()["message"]
-            except (ValueError, KeyError):
-                pass
-            LOGGER.error("Error %d (%s) to get app access token", req.status_code, error_message)
+        token, expires_in = twitch_api.get_app_acces_token()
+        if token is None:
             expire_datetime = datetime.utcnow() + timedelta(seconds=5)
         else:
-            req_json = req.json()
-            API_APP_ACCESS_TOKEN = req_json["access_token"]
-            # TODO Check API errors response
-            # "error": "Unauthorized",
-            # "status": 401,
-            # "message": "Invalid OAuth token"
+            API_APP_ACCESS_TOKEN = token
 
             # Refresh token 12 hours before expiration
-            expire_datetime = datetime.utcnow() + timedelta(seconds=req_json["expires_in"]) - timedelta(hours=12)
+            expire_datetime = datetime.utcnow() + timedelta(seconds=expires_in) - timedelta(hours=12)
             LOGGER.info("App access token requested [%s], expires %s",
                         API_APP_ACCESS_TOKEN, expire_datetime)
 
@@ -114,18 +102,6 @@ def get_app_access_token(token_ready: threading.Event):
 
         # Wait until token expiration
         utils.sleep_until(expire_datetime)
-
-
-def revoke_app_access_token(token: str):
-    url = "https://id.twitch.tv/oauth2/revoke?client_id=" + API_CLIENT_ID + "&token=" + token
-    req = utils.request_post(url)
-    if req.status_code != 200:
-        error_message = "no message"
-        try:
-            error_message = req.json()["message"]
-        except (ValueError, KeyError):
-            pass
-        LOGGER.error("Error %d (%s) to revoke app access token", req.status_code, error_message)
 
 
 def handle_daily_reindex(utchour_wakeup: int):

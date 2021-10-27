@@ -1,11 +1,11 @@
 import logging
 import re
 import time
-import typing
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
 from itertools import zip_longest
+from typing import Union, Tuple
 
 import global_data
 import utils
@@ -19,10 +19,10 @@ class UserAPI:
     streamer_id: int
     login_name: str
     display_name: str
-    broadcaster_type: typing.Union[str, None]
-    description: typing.Union[str, None]
+    broadcaster_type: Union[str, None]
+    description: Union[str, None]
     profile_image: str
-    offline_image: typing.Union[str, None]
+    offline_image: Union[str, None]
 
 
 @dataclass
@@ -32,10 +32,10 @@ class StreamAPI:
     login_name: str
     display_name: str
     language: str
-    title: typing.Union[str, None]
+    title: Union[str, None]
     started_datetime: datetime
-    game_id: typing.Union[int, None]
-    game_title: typing.Union[str, None]
+    game_id: Union[int, None]
+    game_title: Union[str, None]
     nb_viewers: int
     response_datetime: datetime
 
@@ -47,7 +47,7 @@ class GameAPI:
     box_art_url: str
 
 
-def _request_get_api(url: str) -> typing.Union[dict, None]:
+def _request_get_api(url: str) -> Union[dict, None]:
     headers = {"Client-ID": global_data.API_CLIENT_ID, "Authorization": "Bearer " + global_data.API_APP_ACCESS_TOKEN}
 
     response = utils.request_get(url, headers=headers)
@@ -80,7 +80,7 @@ def _request_get_api(url: str) -> typing.Union[dict, None]:
     return resp_json
 
 
-def _requests_with_pagination(number: int, url_endpoint: str) -> typing.Union[list, None]:
+def _requests_with_pagination(number: int, url_endpoint: str) -> Union[list, None]:
     json_list = list()
     cursor = None
 
@@ -202,7 +202,7 @@ def parse_game_data(game_data: dict) -> GameAPI:
                    )
 
 
-def get_game(game_id: int) -> typing.Union[GameAPI, None]:
+def get_game(game_id: int) -> Union[GameAPI, None]:
     # Reference: https://dev.twitch.tv/docs/api/reference#get-games
     req_url = "https://api.twitch.tv/helix/games?id=" + str(game_id)
     resp_json = _request_get_api(req_url)
@@ -233,7 +233,6 @@ def get_many_users(user_id_list: list = None, login_list: list = None) -> list:
     base_req_url = "https://api.twitch.tv/helix/users?"
 
     req_url = base_req_url
-    id_login_list = list()
     nb_user = 0
 
     with ThreadPoolExecutor(max_workers=16) as thread_pool:
@@ -259,3 +258,34 @@ def get_many_users(user_id_list: list = None, login_list: list = None) -> list:
                 user_list.append(parse_data_users(user))
 
     return user_list
+
+
+def get_app_acces_token() -> Tuple[Union[str, None], int]:
+    url = "https://id.twitch.tv/oauth2/token?client_id={}&client_secret={}" \
+          "&grant_type=client_credentials".format(global_data.API_CLIENT_ID, global_data.API_CLIENT_SECRET)
+    req = utils.request_post(url)
+
+    if req.status_code != 200:
+        error_message = "no message"
+        try:
+            error_message = req.json()["message"]
+        except (ValueError, KeyError):
+            pass
+        LOGGER.error("Error %d (%s) to get app access token", req.status_code, error_message)
+        return None, 0
+    else:
+        req_json = req.json()
+        return req_json["access_token"], req_json["expires_in"]
+
+
+def revoke_app_access_token(token: str):
+    url = "https://id.twitch.tv/oauth2/revoke?client_id={}&token={}".format(global_data.API_CLIENT_ID, token)
+    req = utils.request_post(url)
+
+    if req.status_code != 200:
+        error_message = "no message"
+        try:
+            error_message = req.json()["message"]
+        except (ValueError, KeyError):
+            pass
+        LOGGER.error("Error %d (%s) to revoke app access token", req.status_code, error_message)

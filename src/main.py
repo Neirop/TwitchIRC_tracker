@@ -36,7 +36,7 @@ def main():
 
     # Get an app access token and launch thread that will change token after expiration time
     token_ready = threading.Event()
-    threading.Thread(target=global_data.get_app_access_token, args=(token_ready,)).start()
+    threading.Thread(target=global_data.handle_app_access_token, args=(token_ready,)).start()
     token_ready.wait()
     if global_data.API_APP_ACCESS_TOKEN == "":
         print("Error: Can't get API access token (check log)")
