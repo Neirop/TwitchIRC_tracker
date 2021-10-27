@@ -115,10 +115,10 @@ class StreamTracker:
                                  language_stream=stream_data.language)
 
             change_datetime = stream_data.started_datetime
+            last_stream_state = None
         else:
             change_datetime = stream_data.response_datetime
-
-        last_stream_state = StreamState.get_last_stream_state(stream_data.stream_id)
+            last_stream_state = StreamState.get_last_stream_state(stream_data.stream_id)
 
         if last_stream_state is not None:
             # Check if there is a difference with the last stream state
@@ -142,7 +142,6 @@ class StreamTracker:
                 return True
             else:
                 return False
-        # New stream
         else:
             StreamState.insert_stream_state(stream_id=stream_data.stream_id,
                                             change_datetime=change_datetime,
@@ -237,44 +236,53 @@ class StreamTracker:
             stats = collections.Counter()
             start_time = time.time()
 
-            current_streams_online = twitch_api.get_many_streams([s.streamer_id
-                                                                  for s in Streamer.get_all_streamers_tracked()])
-            current_streams_online = {stream.stream_id: stream for stream in current_streams_online}
+            stream_id_online_dict = {stream.stream_id: stream for stream in twitch_api.get_many_streams(
+                [s.streamer_id for s in Streamer.get_all_streamers_tracked()])}
+            streamer_id_online_dict = {stream.streamer_id: stream for stream in stream_id_online_dict.values()}
 
-            if len(current_streams_online) > 0:
+            if len(stream_id_online_dict) > 0:
                 # Get response_datetime of the last requests
-                response_datetime_end = max(s.response_datetime for s in current_streams_online.values())
+                response_datetime_end = max(s.response_datetime for s in stream_id_online_dict.values())
             else:
                 response_datetime_end = datetime.utcnow()
 
             # Check streams that went offline
-            active_stream_db = Stream.get_active_streams()
-            for stream in active_stream_db:
-                if stream.stream_id not in current_streams_online:
+            active_stream_db_list = Stream.get_active_streams()
+            for stream in active_stream_db_list:
+                if stream.stream_id not in stream_id_online_dict:
+
+                    # Check if a stream was restarted in meantime
+                    if stream.streamer_id in streamer_id_online_dict:
+                        # If restarted, use started_datetime of new stream as ended_datetime of previous stream
+                        ended_datetime = streamer_id_online_dict[stream.streamer_id].started_datetime - \
+                                         timedelta(seconds=1)
+                    else:
+                        ended_datetime = response_datetime_end
+
                     self.compile_stream_stats(stream.streamer_id.streamer_id,
                                               stream.streamer_id.login_name,
                                               stream.stream_id,
                                               stream.started_datetime,
-                                              response_datetime_end)
+                                              ended_datetime)
                     stats["ended"] += 1
 
             # Check new online streams
-            streams_id_db = {s.stream_id for s in Stream.get_many_streams(list(current_streams_online.keys()))}
-            for stream_id, current_stream in current_streams_online.items():
-                if stream_id not in streams_id_db:
-                    LOGGER.debug("New stream from [%s]", current_stream.login_name)
-                    self.stream_change(current_stream, True)
+            stream_id_db_set = {s.stream_id for s in Stream.get_many_streams(list(stream_id_online_dict.keys()))}
+            for stream_id, online_stream in stream_id_online_dict.items():
+                if stream_id not in stream_id_db_set:
+                    LOGGER.debug("New stream from [%s]", online_stream.login_name)
+                    self.stream_change(online_stream, True)
                     stats["started"] += 1
                 else:
-                    if self.stream_change(current_stream, False):
-                        LOGGER.debug("Stream change from [%s]", current_stream.login_name)
+                    if self.stream_change(online_stream, False):
+                        LOGGER.debug("Stream change from [%s]", online_stream.login_name)
                         stats["changed"] += 1
 
             # Insert viewer_count of current streams in database only if previous viewer count is different
             viewer_count_list = [{"stream_id": stream.stream_id,
                                   "count_datetime": stream.response_datetime,
                                   "nb_viewers": stream.nb_viewers}
-                                 for stream_id, stream in current_streams_online.items()]
+                                 for stream_id, stream in stream_id_online_dict.items()]
             last_viewer_count_dict = {v.stream_id: v for v in StreamViewerCount.get_last_viewer_counts()}
             row_list = list()
 
