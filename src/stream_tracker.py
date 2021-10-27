@@ -11,7 +11,6 @@ from database_model import Streamer, Stream, StreamState, StreamStatsCount, Stre
     RoomState, UserMessage, UserBanned, Cheer, Sub, SubStatsCount
 
 # fetch_new_streams
-MAX_STREAMERS_TRACKED = 8000
 TRACK_ONLY_VERIFIED = True
 NB_FETCH_NEW_STREAMS = 200
 POLL_TIME_NEW_STREAMS = 10 * 60
