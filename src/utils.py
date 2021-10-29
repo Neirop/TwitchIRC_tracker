@@ -1,3 +1,4 @@
+import asyncio
 import time
 import typing
 from datetime import datetime
@@ -21,6 +22,12 @@ def sleep_until(end_utcdatetime: datetime):
         time.sleep(diff / 2)
         if diff <= 0.1:
             return
+
+
+async def periodic_task(coro_func: typing.Callable, interval: int):
+    while True:
+        await asyncio.gather(asyncio.sleep(interval),
+                             coro_func())
 
 
 def _create_session() -> requests.Session:

@@ -18,6 +18,7 @@ from pydle.features.ircv3.tags import TaggedMessage
 
 import global_data
 import response_handler
+import utils
 from database_model import Streamer
 from response_handler import ResponseStruct, RoomstateResponse, MessageResponse, \
     BanResponse, ClearmsgResponse, CheerResponse, SubResponse
@@ -797,35 +798,33 @@ class IRCHandler:
                     await client.join(streamer_name, streamer_id)
             # Part the channel
             else:
-                for client in self.clients_pool:
-                    if client.is_joined(streamer_name):
-                        await client.part(streamer_name)
-                        break
+                if streamer_name in self.channel_joined_map:
+                    for client in self.clients_pool:
+                        if client.is_joined(streamer_name):
+                            await client.part(streamer_name)
+                            break
 
     async def poll_streamers(self):
-        while True:
-            if self.channel_irc_queue.qsize():
-                # Wait for current channel join/part processing
-                await asyncio.sleep(POLL_TIME_STREAMERS)
-                continue
+        # Wait for current channel join/part processing
+        if self.channel_irc_queue.qsize():
+            return
 
-            streamers = await self.event_loop.run_in_executor(None, Streamer.get_all_record_of_table)
+        streamers = await self.event_loop.run_in_executor(None, Streamer.get_all_record_of_table)
 
-            for streamer in streamers:
-                if streamer.banned or not streamer.tracked:
-                    # Part channel
-                    await self.channel_irc_queue.put((streamer.login_name, 0))
-                else:
-                    # Join channel
-                    await self.channel_irc_queue.put((streamer.login_name, streamer.streamer_id))
+        for streamer in streamers:
+            if streamer.banned or not streamer.tracked:
+                # Part channel
+                await self.channel_irc_queue.put((streamer.login_name, 0))
+            else:
+                # Join channel
+                await self.channel_irc_queue.put((streamer.login_name, streamer.streamer_id))
 
-            # Case for login change: Part for old login
-            streamers_login = {streamer.login_name for streamer in streamers}
-            for channel in self.channel_joined_map:
-                if channel not in streamers_login:
-                    await self.channel_irc_queue.put((channel, 0))
+        # Case for login change: Part for old login
+        streamers_login = {streamer.login_name for streamer in streamers}
+        for channel in self.channel_joined_map:
+            if channel not in streamers_login:
+                await self.channel_irc_queue.put((channel, 0))
 
-            await asyncio.sleep(POLL_TIME_STREAMERS)
 
     async def get_info_stats(self, client_num: int = None) -> str:
         def client_resume(c: IRCTwitchClient) -> str:
@@ -878,7 +877,8 @@ class IRCHandler:
         # Start response handler thread
         self.event_loop.run_in_executor(None, self.response_handler.start_handler)
 
-        self.event_loop.create_task(self.poll_streamers())
+        self.event_loop.create_task(utils.periodic_task(self.poll_streamers,
+                                                        POLL_TIME_STREAMERS))
 
         self.event_loop.create_task(self.handle_clients())
 
