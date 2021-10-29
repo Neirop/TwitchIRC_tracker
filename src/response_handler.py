@@ -139,8 +139,6 @@ class ResponseHandler(HandlerStatistics):
         self.response_stack = response_stack
         self.irc_handler_event_loop = irc_handler_event_loop
 
-        self.response_data = None
-
         self.roomstate_hander = RoomstateHandler()
         self.ban_handler = BanHandler()
         self.clearmsg_handler = ClearmsgHandler()
@@ -153,11 +151,13 @@ class ResponseHandler(HandlerStatistics):
             start_time = time.time()
 
             future = asyncio.run_coroutine_threadsafe(self.fetch_response_data(), self.irc_handler_event_loop)
-            future.result()
+            response_data = future.result()
 
-            self.handle_response()
+            self.handle_response(response_data)
 
             elapsed_time = time.time() - start_time
+            # Let garbage collector free variable before sleeping
+            response_data = None
 
             if elapsed_time < HANDLE_ITERATION_TIME:
                 time.sleep(HANDLE_ITERATION_TIME - elapsed_time)
@@ -165,26 +165,27 @@ class ResponseHandler(HandlerStatistics):
                 LOGGER.warning("Handler execution time took %.2f seconds", elapsed_time)
 
     @HandlerStatistics.exec_time(save_iteration_stats=True)
-    def handle_response(self):
-        if len(self.response_data.roomstate) > 0:
-            self.roomstate_hander.handle_roomstate(self.response_data.roomstate)
+    def handle_response(self, response_data: ResponseStruct):
+        if len(response_data.roomstate) > 0:
+            self.roomstate_hander.handle_roomstate(response_data.roomstate)
         # Bans and clearmsgs must be handled before messages
-        if len(self.response_data.ban) > 0:
-            self.ban_handler.handle_ban(self.response_data.ban, self.response_data.message)
-        if len(self.response_data.clearmsg) > 0:
-            self.clearmsg_handler.handle_clearmsg(self.response_data.clearmsg, self.response_data.message)
-        if len(self.response_data.message) > 0:
-            self.message_handler.handle_message(self.response_data.message)
-        if len(self.response_data.cheer) > 0:
-            self.cheer_handler.handle_cheer(self.response_data.cheer)
-        if len(self.response_data.sub) > 0:
-            self.sub_handler.handle_sub(self.response_data.sub)
+        if len(response_data.ban) > 0:
+            self.ban_handler.handle_ban(response_data.ban, response_data.message)
+        if len(response_data.clearmsg) > 0:
+            self.clearmsg_handler.handle_clearmsg(response_data.clearmsg, response_data.message)
+        if len(response_data.message) > 0:
+            self.message_handler.handle_message(response_data.message)
+        if len(response_data.cheer) > 0:
+            self.cheer_handler.handle_cheer(response_data.cheer)
+        if len(response_data.sub) > 0:
+            self.sub_handler.handle_sub(response_data.sub)
 
-    async def fetch_response_data(self):
-        self.response_data = copy.deepcopy(self.response_stack)
-
+    async def fetch_response_data(self) -> ResponseStruct:
+        response_data = copy.deepcopy(self.response_stack)
         for d in self.response_stack:
             d.clear()
+
+        return response_data
 
     def get_stats(self, verbose: bool = False) -> str:
         def underlined(s: str) -> str:
