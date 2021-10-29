@@ -17,6 +17,7 @@ POLL_TIME_NEW_STREAMS = 10 * 60
 
 # check_streams_change
 INTERVAL_COUNT_STREAM = 15 * 60
+MIN_INTERVAL_VIEWER_COUNT = 8 * 60
 POLL_TIME_CHECK_STREAMS = 5 * 60
 
 # check_streamers_change
@@ -30,7 +31,7 @@ CLEAN_TIME_OFFSET = 30 * 60
 CLEAN_MESSAGE_OFFSET = 150
 CLEAN_DELETED_MESSAGE_OFFSET = 100
 CLEAN_BAN_OFFSET = 100
-POLL_TIME_CLEAN_STATS = 30 * 60
+POLL_TIME_CLEAN_STATS = 15 * 60
 
 LOGGER = logging.getLogger(__name__)
 
@@ -286,8 +287,12 @@ class StreamTracker:
             row_list = list()
 
             for viewer_count in viewer_count_list:
-                if viewer_count["nb_viewers"] != getattr(last_viewer_count_dict.get(viewer_count["stream_id"], None),
-                                                         "nb_viewers", None):
+                last_viewer_count = last_viewer_count_dict.get(viewer_count["stream_id"], None)
+                if last_viewer_count is None:
+                    row_list.append(viewer_count)
+                elif viewer_count["nb_viewers"] != last_viewer_count.nb_viewers and \
+                        (viewer_count["count_datetime"] - last_viewer_count.count_datetime).total_seconds() > \
+                        MIN_INTERVAL_VIEWER_COUNT:
                     row_list.append(viewer_count)
 
             StreamViewerCount.insert_many_row(row_list)
