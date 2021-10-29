@@ -6,7 +6,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
-MAX_RETRY_REQUESTS = 10
+MAX_RETRY_REQUESTS = 12
 
 
 def convert_str_date_to_datetime(str_date: str) -> datetime:
