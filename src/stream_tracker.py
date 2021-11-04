@@ -204,6 +204,7 @@ class StreamTracker:
 
         Stream.update_stream(stream_id,
                              ended_datetime=ended_datetime,
+                             avg_viewers=StreamViewerCount.get_average_viewers(stream_id),
                              **RoomState.count_stream_room_state(
                                  streamer_id,
                                  started_datetime,

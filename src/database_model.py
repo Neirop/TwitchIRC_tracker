@@ -107,6 +107,7 @@ class Stream(BaseModel):
     started_datetime = DateTimeField()
     ended_datetime = DateTimeField(default=None, null=True)
     language_stream = TextField()
+    avg_viewers = IntegerField(default=0)
     # Roomstate stats
     emote_only_pct = FloatField(default=None, null=True)
     r9k_pct = FloatField(default=None, null=True)
@@ -203,6 +204,11 @@ class StreamViewerCount(BaseModel):
         kwargs = locals()
         kwargs.pop("cls")
         cls.insert(**kwargs)
+
+    @classmethod
+    def get_average_viewers(cls, stream_id: int) -> int:
+        avg_viewers = cls.select(fn.AVG(cls.nb_viewers).alias("avg_viewers")).where(cls.stream_id == stream_id).get()
+        return int(avg_viewers.avg_viewers) if avg_viewers.avg_viewers is not None else 0
 
     @classmethod
     def get_last_viewer_counts(cls) -> List[T]:
