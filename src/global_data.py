@@ -120,4 +120,4 @@ def handle_daily_reindex(utchour_wakeup: int):
         time.sleep(reindex_pause)
         database_model.reindex_table("user_banned")
 
-        LOGGER.info("Reindex user_message and user_banned table in %.2f", time.time() - start_time - reindex_pause)
+        LOGGER.info("Reindex user_message and user_banned table in %.2f seconds", time.time() - start_time - reindex_pause)

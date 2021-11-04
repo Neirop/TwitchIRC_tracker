@@ -244,23 +244,21 @@ class StreamTracker:
 
         # Check streams that went offline
         active_stream_db_list = Stream.get_active_streams()
-        for stream in active_stream_db_list:
-            if stream.stream_id not in stream_id_online_dict:
-
+        for stream_db in active_stream_db_list:
+            if stream_db.stream_id not in stream_id_online_dict:
                 # Check if a stream was restarted in meantime
-                if stream.streamer_id in streamer_id_online_dict:
-                    # If restarted, use started_datetime of new stream as ended_datetime of previous stream
-                    ended_datetime = streamer_id_online_dict[stream.streamer_id].started_datetime - \
-                                     timedelta(seconds=1)
+                if stream_db.streamer_id in streamer_id_online_dict:
+                    # If restarted, update stream id
+                    Stream.update_stream(stream_id=stream_db.stream_id,
+                                         new_stream_id=streamer_id_online_dict[stream_db.streamer_id].stream_id)
+                    stats["restarted"] += 1
                 else:
-                    ended_datetime = response_datetime_end
-
-                self.compile_stream_stats(stream.streamer_id.streamer_id,
-                                          stream.streamer_id.login_name,
-                                          stream.stream_id,
-                                          stream.started_datetime,
-                                          ended_datetime)
-                stats["ended"] += 1
+                    self.compile_stream_stats(stream_db.streamer_id.streamer_id,
+                                              stream_db.streamer_id.login_name,
+                                              stream_db.stream_id,
+                                              stream_db.started_datetime,
+                                              response_datetime_end)
+                    stats["ended"] += 1
 
         # Check new online streams
         stream_id_db_set = {s.stream_id for s in Stream.get_many_streams(list(stream_id_online_dict.keys()))}
@@ -293,8 +291,8 @@ class StreamTracker:
 
         StreamViewerCount.insert_many_row(row_list)
 
-        LOGGER.info("Check stream processed in %.2f seconds (%d started, %d changed, %d ended)",
-                    time.time() - start_time, stats["started"], stats["changed"], stats["ended"])
+        LOGGER.info("Check stream processed in %.2f seconds (%d started, %d restarted, %d changed, %d ended)",
+                    time.time() - start_time, stats["started"], stats["restarted"], stats["changed"], stats["ended"])
 
     async def check_streamers_change(self):
         stats = collections.Counter()

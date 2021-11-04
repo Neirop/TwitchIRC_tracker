@@ -102,8 +102,8 @@ class Streamer(BaseModel):
 
 class Stream(BaseModel):
     stream_id = BigIntegerField(primary_key=True)
-    streamer_id = ForeignKeyField(column_name='streamer_id', field='streamer_id', model=Streamer, on_delete='CASCADE',
-                                  index=False, lazy_load=False)
+    streamer_id = ForeignKeyField(column_name='streamer_id', field='streamer_id', model=Streamer,
+                                  on_delete='CASCADE', on_update='CASCADE', index=False, lazy_load=False)
     started_datetime = DateTimeField()
     ended_datetime = DateTimeField(default=None, null=True)
     language_stream = TextField()
@@ -146,18 +146,15 @@ class Stream(BaseModel):
     T = TypeVar('T', bound="Stream")
 
     @classmethod
-    def get_stream(cls, stream_id: int) -> Union[T, None]:
-        return cls.get_or_none(cls.stream_id == stream_id)
-
-    @classmethod
     def insert_stream(cls, streamer_id: int, stream_id: int, started_datetime: datetime, language_stream: str) -> None:
         kwargs = locals()
         kwargs.pop("cls")
         cls.insert(**kwargs)
 
     @classmethod
-    def update_stream(cls, stream_id: int, **kwargs) -> None:
-        cls.update(**kwargs).where(cls.stream_id == stream_id).execute()
+    def update_stream(cls, stream_id: int, new_stream_id: int = None, **kwargs) -> None:
+        cls.update(stream_id=new_stream_id if new_stream_id is not None else stream_id, **kwargs) \
+            .where(cls.stream_id == stream_id).execute()
 
     @classmethod
     def get_many_streams(cls, stream_id_list: List[int]) -> List[T]:
