@@ -246,15 +246,16 @@ class StreamTracker:
         # Check streams that went offline
         active_stream_db_list = Stream.get_active_streams()
         for stream_db in active_stream_db_list:
+            streamer_id_db = stream_db.streamer_id.streamer_id
             if stream_db.stream_id not in stream_id_online_dict:
                 # Check if a stream was restarted in meantime
-                if stream_db.streamer_id in streamer_id_online_dict:
+                if streamer_id_db in streamer_id_online_dict:
                     # If restarted, update stream id
                     Stream.update_stream(stream_id=stream_db.stream_id,
-                                         new_stream_id=streamer_id_online_dict[stream_db.streamer_id].stream_id)
+                                         new_stream_id=streamer_id_online_dict[streamer_id_db].stream_id)
                     stats["restarted"] += 1
                 else:
-                    self.compile_stream_stats(stream_db.streamer_id.streamer_id,
+                    self.compile_stream_stats(streamer_id_db,
                                               stream_db.streamer_id.login_name,
                                               stream_db.stream_id,
                                               stream_db.started_datetime,

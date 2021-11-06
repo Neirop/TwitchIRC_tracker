@@ -102,8 +102,8 @@ class Streamer(BaseModel):
 
 class Stream(BaseModel):
     stream_id = BigIntegerField(primary_key=True)
-    streamer_id = ForeignKeyField(column_name='streamer_id', field='streamer_id', model=Streamer,
-                                  on_delete='CASCADE', on_update='CASCADE', index=False, lazy_load=False)
+    streamer_id = ForeignKeyField(column_name='streamer_id', field='streamer_id', model=Streamer, on_delete='CASCADE',
+                                  index=False, lazy_load=False)
     started_datetime = DateTimeField()
     ended_datetime = DateTimeField(default=None, null=True)
     language_stream = TextField()
@@ -187,8 +187,8 @@ class Stream(BaseModel):
 
 
 class StreamViewerCount(BaseModel):
-    stream_id = ForeignKeyField(column_name='stream_id', field='stream_id', model=Stream, on_delete='CASCADE',
-                                index=False, lazy_load=False)
+    stream_id = ForeignKeyField(column_name='stream_id', field='stream_id', model=Stream,
+                                on_delete='CASCADE', on_update='CASCADE', index=False, lazy_load=False)
     count_datetime = DateTimeField()
     nb_viewers = IntegerField()
 
@@ -254,8 +254,8 @@ class Game(BaseModel):
 
 
 class StreamState(BaseModel):
-    stream_id = ForeignKeyField(column_name='stream_id', field='stream_id', model=Stream, on_delete='CASCADE',
-                                index=False, lazy_load=False)
+    stream_id = ForeignKeyField(column_name='stream_id', field='stream_id', model=Stream,
+                                on_delete='CASCADE', on_update='CASCADE', index=False, lazy_load=False)
     change_datetime = DateTimeField()
     title = TextField(null=True)
     game_id = ForeignKeyField(column_name='game_id', field='game_id', model=Game, null=True, lazy_load=False)
@@ -294,8 +294,8 @@ class StreamState(BaseModel):
 
 
 class StreamStatsCount(BaseModel):
-    stream_id = ForeignKeyField(column_name='stream_id', field='stream_id', model=Stream, on_delete='CASCADE',
-                                index=False, lazy_load=False)
+    stream_id = ForeignKeyField(column_name='stream_id', field='stream_id', model=Stream,
+                                on_delete='CASCADE', on_update='CASCADE', index=False, lazy_load=False)
     start_count_datetime = DateTimeField()
     # Message
     nb_message = IntegerField(default=0)
