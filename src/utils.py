@@ -1,4 +1,6 @@
 import asyncio
+import os
+import signal
 import time
 import typing
 from datetime import datetime
@@ -32,7 +34,6 @@ async def periodic_task(coro_func: typing.Callable, interval: int):
 
 def _create_session() -> requests.Session:
     session = requests.Session()
-    # TODO Catch potential exception
     retry = Retry(total=MAX_RETRY_REQUESTS, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504])
     adapter = HTTPAdapter(max_retries=retry)
     session.mount('http://', adapter)
@@ -42,11 +43,19 @@ def _create_session() -> requests.Session:
 
 
 def request_get(url: str, headers: dict = None) -> requests.Response:
-    return _create_session().get(url, headers=headers)
+    try:
+        return _create_session().get(url, headers=headers)
+    except Exception as err:
+        print(err)
+        os.kill(os.getpid(), signal.SIGTERM)
 
 
 def request_post(url: str, headers: dict = None, data: str = None) -> requests.Response:
-    return _create_session().post(url, headers=headers, data=data)
+    try:
+        return _create_session().post(url, headers=headers, data=data)
+    except Exception as err:
+        print(err)
+        os.kill(os.getpid(), signal.SIGTERM)
 
 
 def get_external_ip() -> typing.Union[str, None]:
