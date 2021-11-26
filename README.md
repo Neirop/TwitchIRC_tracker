@@ -12,7 +12,7 @@ You have to create a Twitch client ID and client secret [here](https://dev.twitc
 pip3 install -r requirements.txt
 ```
  
-* Create a database, no need to create tables and columns (done by the app).
+* Create a database, no need to create tables and columns (done by the app):
 ```
 psql -U postgres -c "CREATE DATABASE twitchirc_tracker"
 ```
