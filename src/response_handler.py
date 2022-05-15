@@ -20,8 +20,7 @@ BOT_BAN_DETECTION_TIME = 1
 # Minimal ban time to record the ban if there is no message
 IGNORE_BAN_TIME = 30
 # Last number of message concerned by CLEARCHAT response
-# (Currently, there are 150 message displayed in Twitch chat)
-NB_MESSAGES_CLEARCHAT = 150
+NB_MESSAGES_CLEARCHAT = 300
 
 
 @dataclass

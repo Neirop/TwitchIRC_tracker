@@ -52,7 +52,8 @@ IGNORED_COMMAND = {"001", "002", "003", "004", "353", "366", "372", "375",
 IGNORED_NOTICE = {"raid", "unraid", "bitsbadgetier", "ritual", "charity",
                   "rewardgift", "primecommunitygiftreceived",
                   "submysterygift", "communitypayforward", "standardpayforward",
-                  "giftpaidupgrade", "anongiftpaidupgrade", "primepaidupgrade"
+                  "giftpaidupgrade", "anongiftpaidupgrade", "primepaidupgrade",
+                  "announcement"
                   }
 
 # submysterygift: Gift random subs
@@ -73,7 +74,7 @@ IGNORED_NOTICE = {"raid", "unraid", "bitsbadgetier", "ritual", "charity",
 
 
 LIMIT_JOIN_PER_SOCKET = 80
-LIMIT_TIME_REQ = 0.30
+LIMIT_TIME_REQ = 0.33
 
 SUB_TYPE_INT = {"Prime": 0, "1000": 1, "2000": 2, "3000": 3}
 
